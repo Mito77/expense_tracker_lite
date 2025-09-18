@@ -13,8 +13,8 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: 'stable'
-          channel: 'stable'
+          flutter-version: '3.29.3'   # pin to your local Flutter
+          cache: true
 
       - name: Flutter version
         run: flutter --version
@@ -30,3 +30,64 @@ jobs:
         with:
           name: coverage-lcov
           path: coverage/lcov.info
+
+  build-android:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java (AGP 8.x compatible)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.29.3'
+          cache: true
+
+      - name: Set up Android SDK & accept licenses
+        uses: android-actions/setup-android@v3
+        with:
+          packages: |
+            platforms;android-34
+            build-tools;34.0.0
+            platform-tools
+      - run: yes | sdkmanager --licenses
+
+      - name: Restore packages
+        run: flutter pub get
+
+      # Uncomment if you generate adapters or other code
+      # - name: Build generated code
+      #   run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Build APK (release)
+        run: flutter build apk --release
+
+      - name: Read version from pubspec.yaml
+        id: appver
+        shell: bash
+        run: |
+          APP_VERSION=$(grep '^version:' pubspec.yaml | sed 's/version:[[:space:]]*//')
+          echo "APP_VERSION=$APP_VERSION" >> $GITHUB_ENV
+          echo "version=$APP_VERSION" >> $GITHUB_OUTPUT
+          echo "Detected version: $APP_VERSION"
+
+      - name: Rename APK with version
+        run: |
+          APK_PATH="build/app/outputs/flutter-apk/app-release.apk"
+          NEW_APK="expense-tracker-lite-v${APP_VERSION}-${{ github.run_number }}.apk"
+          ls -l "$APK_PATH"
+          mv "$APK_PATH" "build/app/outputs/flutter-apk/$NEW_APK"
+          echo "NEW_APK=$NEW_APK" >> $GITHUB_ENV
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.NEW_APK }}
+          path: build/app/outputs/flutter-apk/${{ env.NEW_APK }}
