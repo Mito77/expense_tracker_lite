@@ -1,6 +1,5 @@
 abstract class AddExpenseEvent {}
 
-
 class SaveExpense extends AddExpenseEvent {
   final String category;
   final double amount;

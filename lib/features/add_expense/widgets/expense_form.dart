@@ -46,9 +46,10 @@ class _ExpenseFormState extends State<ExpenseForm> {
             // 🔹 Currency Dropdown
             DropdownButtonFormField<String>(
               value: _selectedCurrency,
-              items: _currencies
-                  .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                  .toList(),
+              items:
+                  _currencies
+                      .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                      .toList(),
               onChanged: (val) => setState(() => _selectedCurrency = val!),
               decoration: const InputDecoration(labelText: "Currency"),
             ),
@@ -77,20 +78,22 @@ class _ExpenseFormState extends State<ExpenseForm> {
             const SizedBox(height: 20),
 
             ElevatedButton(
-              child: _isConverting
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text("Save Expense"),
+              child:
+                  _isConverting
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text("Save Expense"),
               onPressed: () async {
                 if (_formKey.currentState!.validate()) {
                   setState(() => _isConverting = true);
 
-                  final amount =
-                      double.tryParse(_amountController.text) ?? 0.0;
+                  final amount = double.tryParse(_amountController.text) ?? 0.0;
 
                   try {
                     // 🔹 Convert to USD using API
                     final usdAmount = await CurrencyApi.convertToUSD(
-                        amount, _selectedCurrency);
+                      amount,
+                      _selectedCurrency,
+                    );
 
                     final expense = ExpenseModel(
                       id: DateTime.now().millisecondsSinceEpoch.toString(),

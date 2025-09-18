@@ -48,10 +48,9 @@ screens/ # dashboard, add_expense
 
 ## Screenshots
 
-
 (Add images in `/screenshots`, then embed:)
-![Dashboard](screenshots/dashboard.png)
-![Add Expense](screenshots/add_expense.png)
+![dashboard_screen](screenshots/dashboard/dashboard_screen.jpg)
+![add_expense_screen](screenshots/add_expense/add_expense_screen.jpg)
 
 ## Trade-offs / Assumptions
 
@@ -74,3 +73,8 @@ flutter test --coverage
  Persist user currency preference
 
  Widget tests for filter dropdown tap
+ 
+ Pagination Test 
+ 
+ Currency Calculation
+

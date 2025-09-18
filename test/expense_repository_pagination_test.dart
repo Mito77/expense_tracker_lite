@@ -49,11 +49,25 @@ void main() {
       await box.add(exp(date: DateTime(2025, 9, d), amount: d.toDouble()));
     }
 
-    await box.add(exp(date: DateTime(2025, 10, 1), amount: 999, category: 'future'));
+    await box.add(
+      exp(date: DateTime(2025, 10, 1), amount: 999, category: 'future'),
+    );
 
-    final p1 = await repo.fetchExpenses(page: 1, pageSize: 10, filter: DashboardFilter.thisMonth);
-    final p2 = await repo.fetchExpenses(page: 2, pageSize: 10, filter: DashboardFilter.thisMonth);
-    final p3 = await repo.fetchExpenses(page: 3, pageSize: 10, filter: DashboardFilter.thisMonth);
+    final p1 = await repo.fetchExpenses(
+      page: 1,
+      pageSize: 10,
+      filter: DashboardFilter.thisMonth,
+    );
+    final p2 = await repo.fetchExpenses(
+      page: 2,
+      pageSize: 10,
+      filter: DashboardFilter.thisMonth,
+    );
+    final p3 = await repo.fetchExpenses(
+      page: 3,
+      pageSize: 10,
+      filter: DashboardFilter.thisMonth,
+    );
 
     expect(p1.items.length, 10);
     expect(p1.hasMore, isTrue);
@@ -78,7 +92,11 @@ void main() {
       exp(date: DateTime(2025, 9, 11), amount: -5, category: 'old'),
     ]);
 
-    final r = await repo.fetchExpenses(page: 1, pageSize: 10, filter: DashboardFilter.last7Days);
+    final r = await repo.fetchExpenses(
+      page: 1,
+      pageSize: 10,
+      filter: DashboardFilter.last7Days,
+    );
     expect(r.items.length, 3);
     expect(r.items.any((e) => e.category == 'old'), isFalse);
   });

@@ -1,27 +1,29 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hive/hive.dart';
-import 'package:uuid/uuid.dart';
 import '../../../data/models/expense_model.dart';
 import '../../../data/repositories/currency_repository.dart';
 import 'add_expense_event.dart';
 import 'add_expense_state.dart';
 
-
 class AddExpenseBloc extends Bloc<AddExpenseEvent, AddExpenseState> {
   final Box<ExpenseModel> expenseBox;
   final CurrencyRepository currencyRepository;
 
-
-  AddExpenseBloc(this.expenseBox, this.currencyRepository) : super(AddExpenseInitial()) {
+  AddExpenseBloc(this.expenseBox, this.currencyRepository)
+    : super(AddExpenseInitial()) {
     on<SaveExpense>(_onSaveExpense);
     print('[AddExpenseBloc] ready');
   }
 
-  Future<void> _onSaveExpense(SaveExpense e, Emitter<AddExpenseState> emit) async {
-    print('[AddExpenseBloc] received SaveExpense: ${e.category}, ${e.amount} ${e.currency}');
+  Future<void> _onSaveExpense(
+    SaveExpense e,
+    Emitter<AddExpenseState> emit,
+  ) async {
+    print(
+      '[AddExpenseBloc] received SaveExpense: ${e.category}, ${e.amount} ${e.currency}',
+    );
     emit(AddExpenseLoading());
     try {
-
       final usdAmount = await currencyRepository
           .convertToUSD(e.amount, e.currency)
           .timeout(const Duration(seconds: 10));
@@ -44,5 +46,4 @@ class AddExpenseBloc extends Bloc<AddExpenseEvent, AddExpenseState> {
       emit(AddExpenseFailure('Failed to save: $err'));
     }
   }
-
 }

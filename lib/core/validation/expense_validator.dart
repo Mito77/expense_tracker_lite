@@ -1,12 +1,11 @@
 import '../../data/models/expense_model.dart';
 
 class ExpenseValidator {
-
   static List<String> validate(
-      ExpenseModel e, {
-        DateTime? now,
-        double maxAbsAmount = 1e9,
-      }) {
+    ExpenseModel e, {
+    DateTime? now,
+    double maxAbsAmount = 1e9,
+  }) {
     final errors = <String>[];
     final localNow = (now ?? DateTime.now()).toLocal();
 

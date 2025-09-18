@@ -47,11 +47,19 @@ void main() {
 
     test('fails: non-finite and huge amount', () {
       final eInf = exp(amount: double.infinity);
-      final errsInf = ExpenseValidator.validate(eInf, now: fixedNow, maxAbsAmount: 1000);
+      final errsInf = ExpenseValidator.validate(
+        eInf,
+        now: fixedNow,
+        maxAbsAmount: 1000,
+      );
       expect(errsInf, contains('Amount must be a finite number.'));
 
       final eHuge = exp(amount: 1001);
-      final errsHuge = ExpenseValidator.validate(eHuge, now: fixedNow, maxAbsAmount: 1000);
+      final errsHuge = ExpenseValidator.validate(
+        eHuge,
+        now: fixedNow,
+        maxAbsAmount: 1000,
+      );
       expect(errsHuge, contains('Amount is unreasonably large.'));
     });
   });

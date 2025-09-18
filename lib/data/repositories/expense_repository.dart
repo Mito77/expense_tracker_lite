@@ -1,6 +1,20 @@
 import 'package:hive/hive.dart';
-import 'package:intl/intl.dart';
 import '../models/expense_model.dart';
+
+extension ExportQueries on ExpenseRepository {
+  Future<List<ExpenseModel>> allFiltered(DashboardFilter filter) async {
+    final now =
+        (nowFn != null
+            ? nowFn()
+            : DateTime.now()); // if you injected nowFn; else just DateTime.now()
+    final values = box.values; // Hive box from your repo
+    // reuse your filter logic; if it's private, add a small wrapper
+    final list =
+        _applyFilter(values, filter, now).toList()
+          ..sort((a, b) => b.date.compareTo(a.date));
+    return list;
+  }
+}
 
 enum DashboardFilter { thisMonth, last7Days, all }
 

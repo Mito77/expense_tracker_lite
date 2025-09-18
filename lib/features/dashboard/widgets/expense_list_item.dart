@@ -10,9 +10,11 @@ class ExpenseListItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       leading: Icon(Icons.receipt_long, color: Colors.blue),
-      title: Text("${expense.category} - ${expense.amount} ${expense.currency}"),
+      title: Text(
+        "${expense.category} - ${expense.amount} ${expense.currency}",
+      ),
       subtitle: Text("USD: ${expense.usdAmount.toStringAsFixed(2)}"),
-      trailing: Text("${expense.date.toLocal().toString().split(' ')[0]}"),
+      trailing: Text(expense.date.toLocal().toString().split(' ')[0]),
     );
   }
 }

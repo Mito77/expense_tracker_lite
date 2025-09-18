@@ -6,11 +6,16 @@ class MoneyUtils {
     return f.format(v);
   }
 
-  static (double balance, double income, double expenses) totals(Iterable<double> amounts) {
+  static (double balance, double income, double expenses) totals(
+    Iterable<double> amounts,
+  ) {
     double income = 0, expenses = 0;
     for (final x in amounts) {
-      if (x >= 0) income += x;
-      else expenses += -x;
+      if (x >= 0) {
+        income += x;
+      } else {
+        expenses += -x;
+      }
     }
     return (income - expenses, income, expenses);
   }

@@ -1,8 +1,6 @@
 import 'package:hive/hive.dart';
 
-
 part 'expense_model.g.dart';
-
 
 @HiveType(typeId: 0)
 class ExpenseModel extends HiveObject {
@@ -20,7 +18,6 @@ class ExpenseModel extends HiveObject {
   final double usdAmount; // converted to USD at save time
   @HiveField(6)
   final String? receiptPath; // optional local file path
-
 
   ExpenseModel({
     required this.id,

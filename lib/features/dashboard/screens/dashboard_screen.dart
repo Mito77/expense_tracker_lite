@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import '../bloc/dashboard_bloc.dart';
@@ -6,149 +7,256 @@ import '../bloc/dashboard_event.dart';
 import '../bloc/dashboard_state.dart';
 import '../../add_expense/screens/add_expense_screen.dart';
 import '../../../data/models/expense_model.dart';
+import 'package:share_plus/share_plus.dart';
+// if not already there
+import '../../../core/export/export_service.dart';
+import '../../../core/export/pdf_export.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
+
+  Future<void> _exportCurrent(
+    BuildContext context,
+    DashboardLoaded state, {
+    required bool asPdf,
+  }) async {
+    try {
+      final bloc = context.read<DashboardBloc>();
+      final items = bloc.allFiltered(state.filter);
+
+      final nowStr = DateFormat('yyyyMMdd_HHmm').format(DateTime.now());
+      final filterStr = () {
+        switch (state.filter) {
+          case DashboardFilter.thisMonth:
+            return 'this-month';
+          case DashboardFilter.last7Days:
+            return 'last-7-days';
+          case DashboardFilter.all:
+          default:
+            return 'all';
+        }
+      }();
+      final baseName = 'expenses_${filterStr}_$nowStr';
+
+      if (asPdf) {
+        final file = await PdfExport.buildAndSave(
+          items: items,
+          totalIncome: state.totalIncome,
+          totalExpenses: state.totalExpenses,
+          totalBalance: state.totalBalance,
+          fileName: baseName,
+        );
+        await Share.shareXFiles([
+          XFile(file.path),
+        ], text: 'Expenses PDF export');
+      } else {
+        final file = await ExportService.exportCsv(
+          items: items,
+          fileName: baseName,
+        );
+        await Share.shareXFiles([
+          XFile(file.path),
+        ], text: 'Expenses CSV export');
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(asPdf ? 'PDF exported' : 'CSV exported')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Export failed: $e')));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final themeBlue = const Color(0xFF3A6FF7);
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FB),
-      body: SafeArea(
-        child: BlocBuilder<DashboardBloc, DashboardState>(
-          builder: (context, state) {
-            if (state is DashboardLoading) {
-              return const Center(child: CircularProgressIndicator());
-            } else if (state is DashboardLoaded) {
-              final items = state.pageItems;
-              return Stack(
-                children: [
-                  // Blue background header
-                  Container(
-                    height: 250,
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Color(0xFF3A6FF7), Color(0xFF6C92F4)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.only(
-                        bottomLeft: Radius.circular(32),
-                        bottomRight: Radius.circular(32),
-                      ),
-                    ),
-                  ),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.dark,
+      ),
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF7F8FB),
 
-                  CustomScrollView(
-                    slivers: [
-                      SliverToBoxAdapter(child: _buildHeader(state, context)),
-                      SliverToBoxAdapter(child: _buildBalanceCard(state)),
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                "Recent Expenses",
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              GestureDetector(
-                                onTap: () {
-                                  context.read<DashboardBloc>().add(
-                                    ChangeFilter(DashboardFilter.all),
-                                  );
-                                },
-                                child: const Text(
-                                  "see all",
-                                  style: TextStyle(
-                                    color: Color(0xFF3A6FF7),
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+        body: SafeArea(
+          child: BlocBuilder<DashboardBloc, DashboardState>(
+            builder: (context, state) {
+              if (state is DashboardLoading) {
+                return const Center(child: CircularProgressIndicator());
+              } else if (state is DashboardLoaded) {
+                final items = state.pageItems;
+                return Stack(
+                  children: [
+                    // Blue background header
+                    Container(
+                      height: 250,
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Color(0xFF3A6FF7), Color(0xFF6C92F4)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.only(
+                          bottomLeft: Radius.circular(32),
+                          bottomRight: Radius.circular(32),
                         ),
                       ),
-                      SliverList.separated(
-                        itemCount: items.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 10),
-                        itemBuilder:
-                            (context, index) => Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                              ),
-                              child: _expenseItem(items[index]),
+                    ),
+
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 250),
+                      child: KeyedSubtree(
+                        key: ValueKey(
+                          'len:${items.length}-f:${state.filter}-p:${state.page}',
+                        ),
+                        child: CustomScrollView(
+                          slivers: [
+                            SliverToBoxAdapter(
+                              child: _buildHeader(state, context),
                             ),
-                      ),
+                            SliverToBoxAdapter(child: _buildBalanceCard(state)),
+                            SliverToBoxAdapter(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      "Recent Expenses",
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    GestureDetector(
+                                      onTap: () {
+                                        context.read<DashboardBloc>().add(
+                                          ChangeFilter(DashboardFilter.all),
+                                        );
+                                      },
+                                      child: const Text(
+                                        "see all",
+                                        style: TextStyle(
+                                          color: Color(0xFF3A6FF7),
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            SliverList.separated(
+                              itemCount: items.length,
+                              separatorBuilder:
+                                  (_, __) => const SizedBox(height: 10),
+                              itemBuilder:
+                                  (context, index) => Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                    ),
+                                    child: _FadeSlideIn(
+                                      index: index,
+                                      child: _expenseItem(items[index]),
+                                    ),
+                                  ),
+                            ),
 
-                      SliverToBoxAdapter(
-                        child: _loadMoreButton(context, state),
+                            SliverToBoxAdapter(
+                              child: _loadMoreButton(context, state),
+                            ),
+                            const SliverToBoxAdapter(
+                              child: SizedBox(height: 16),
+                            ),
+                          ],
+                        ),
                       ),
-                      const SliverToBoxAdapter(child: SizedBox(height: 16)),
-                    ],
-                  ),
-                ],
-              );
-            } else if (state is DashboardError) {
-              return Center(child: Text(state.message));
-            }
-            return const SizedBox();
-          },
+                    ),
+                  ],
+                );
+              } else if (state is DashboardError) {
+                return Center(child: Text(state.message));
+              }
+              return const SizedBox();
+            },
+          ),
         ),
-      ),
 
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: themeBlue,
-        unselectedItemColor: Colors.grey,
-        backgroundColor: Colors.white,
-        currentIndex: 0,
-        showSelectedLabels: false,
-        showUnselectedLabels: false,
-        onTap: (index) async {
-          if (index == 2) {
-            await Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const AddExpenseScreen()),
-            );
+        bottomNavigationBar: BottomNavigationBar(
+          type: BottomNavigationBarType.fixed,
+          selectedItemColor: themeBlue,
+          unselectedItemColor: Colors.grey,
+          backgroundColor: Colors.white,
+          currentIndex: 0,
+          showSelectedLabels: false,
+          showUnselectedLabels: false,
+          onTap: (index) async {
+            if (index == 2) {
+              await Navigator.of(context).push(
+                PageRouteBuilder(
+                  transitionDuration: const Duration(milliseconds: 220),
+                  reverseTransitionDuration: const Duration(milliseconds: 200),
+                  pageBuilder: (_, __, ___) => const AddExpenseScreen(),
+                  transitionsBuilder: (
+                    _,
+                    animation,
+                    secondaryAnimation,
+                    child,
+                  ) {
+                    final curved = CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.easeOutCubic,
+                    );
+                    return FadeTransition(
+                      opacity: curved,
+                      child: SlideTransition(
+                        position: Tween<Offset>(
+                          begin: const Offset(0, 0.05),
+                          end: Offset.zero,
+                        ).animate(curved),
+                        child: child,
+                      ),
+                    );
+                  },
+                ),
+              );
 
-            context.read<DashboardBloc>().add(
-              LoadExpenses(page: 1, filter: DashboardFilter.thisMonth),
-            );
-          }
-        },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_rounded, size: 28),
-            label: "",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.bar_chart_rounded, size: 28),
-            label: "",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.add_circle, size: 52, color: Color(0xFF3A6FF7)),
-            label: "",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.wallet, size: 28),
-            label: "",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_rounded, size: 28),
-            label: "",
-          ),
-        ],
+              context.read<DashboardBloc>().add(
+                LoadExpenses(page: 1, filter: DashboardFilter.thisMonth),
+              );
+            }
+          },
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.home_rounded, size: 28),
+              label: "",
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.bar_chart_rounded, size: 28),
+              label: "",
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.add_circle, size: 52, color: Color(0xFF3A6FF7)),
+              label: "",
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.wallet, size: 28),
+              label: "",
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.person_rounded, size: 28),
+              label: "",
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -187,9 +295,33 @@ class DashboardScreen extends StatelessWidget {
               ),
             ],
           ),
-          _filterDropdown(context, state),
+          Row(
+            children: [
+              _filterDropdown(context, state),
+              const SizedBox(width: 8),
+              _moreMenu(context, state),
+            ],
+          ),
         ],
       ),
+    );
+  }
+
+  Widget _moreMenu(BuildContext context, DashboardLoaded state) {
+    return PopupMenuButton<String>(
+      icon: const Icon(Icons.more_vert, color: Colors.white),
+      onSelected: (v) async {
+        if (v == 'export_csv') {
+          await _exportCurrent(context, state, asPdf: false);
+        } else if (v == 'export_pdf') {
+          await _exportCurrent(context, state, asPdf: true);
+        }
+      },
+      itemBuilder:
+          (_) => const [
+            PopupMenuItem(value: 'export_csv', child: Text('Export CSV')),
+            PopupMenuItem(value: 'export_pdf', child: Text('Export PDF')),
+          ],
     );
   }
 
@@ -243,12 +375,18 @@ class DashboardScreen extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 13,
-                color: Colors.black,
-                fontWeight: FontWeight.w600,
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 180),
+              transitionBuilder:
+                  (child, anim) => FadeTransition(opacity: anim, child: child),
+              child: Text(
+                label,
+                key: ValueKey(label),
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Colors.black,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
             Icon(Icons.arrow_drop_down, color: Colors.black),
@@ -280,24 +418,24 @@ class DashboardScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-           Row(
-             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-             children: [
-               Row(
-                 children: [
-                   Text(
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Text(
                     "Total Balance",
                     style: TextStyle(color: Colors.white70, fontSize: 13),
-                             ),
-                   Icon(Icons.keyboard_arrow_up,color: Colors.white,)
-                 ],
-               ),
-               Icon(Icons.more_horiz,color:Colors.white)
-             ],
-           ),
+                  ),
+                  Icon(Icons.keyboard_arrow_up, color: Colors.white),
+                ],
+              ),
+              Icon(Icons.more_horiz, color: Colors.white),
+            ],
+          ),
           const SizedBox(height: 6),
-          Text(
-            _currency(state.totalBalance),
+          _AnimatedMoney(
+            value: state.totalBalance,
             style: const TextStyle(
               color: Colors.white,
               fontSize: 30,
@@ -357,8 +495,9 @@ class DashboardScreen extends StatelessWidget {
               ),
             ],
           ),
-          Text(
-            _currency(amount),
+          _AnimatedMoney(
+            value: amount,
+            duration: const Duration(milliseconds: 350),
             style: const TextStyle(
               color: Colors.white,
               fontSize: 18,
@@ -479,17 +618,67 @@ class DashboardScreen extends StatelessWidget {
         key.contains('market')) {
       return Icons.local_grocery_store_rounded;
     }
-    if (key.contains('entertain')) return Icons.emoji_emotions_rounded;
+    if (key.contains('entertain')) return Icons.icecream;
     if (key.contains('transport') ||
         key.contains('uber') ||
         key.contains('bus') ||
         key.contains('metro')) {
       return Icons.directions_bus_rounded;
     }
-    if (key.contains('rent') || key.contains('home') || key.contains('house'))
+    if (key.contains('rent') || key.contains('home') || key.contains('house')) {
       return Icons.home_rounded;
-    if (key.contains('food') || key.contains('restaurant'))
+    }
+    if (key.contains('food') || key.contains('restaurant')) {
       return Icons.restaurant_rounded;
+    }
     return Icons.shopping_cart_rounded;
+  }
+}
+
+class _AnimatedMoney extends StatelessWidget {
+  final double value;
+  final TextStyle style;
+  final Duration duration;
+  const _AnimatedMoney({
+    required this.value,
+    required this.style,
+    this.duration = const Duration(milliseconds: 400),
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: value),
+      duration: duration,
+      curve: Curves.easeOut,
+      builder: (_, v, __) {
+        final t = NumberFormat.currency(
+          locale: 'en_US',
+          symbol: '\$',
+        ).format(v);
+        return Text(t, style: style);
+      },
+    );
+  }
+}
+
+class _FadeSlideIn extends StatelessWidget {
+  final Widget child;
+  final int index;
+  const _FadeSlideIn({required this.child, required this.index});
+
+  @override
+  Widget build(BuildContext context) {
+    final ms = 180 + (index % 6) * 30;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 12, end: 0),
+      duration: Duration(milliseconds: ms),
+      curve: Curves.easeOut,
+      builder:
+          (_, offset, __) => Transform.translate(
+            offset: Offset(0, offset),
+            child: Opacity(opacity: (12 - offset) / 12, child: child),
+          ),
+    );
   }
 }

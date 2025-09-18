@@ -19,7 +19,6 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
     final currencyRepo = CurrencyRepository(
       CurrencyRemoteDataSource(http.Client()),
     );
