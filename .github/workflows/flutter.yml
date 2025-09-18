@@ -2,17 +2,22 @@ name: Flutter CI
 on:
   push:
   pull_request:
+
 jobs:
-  test-build:
+  test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: subosito/flutter-action@v2
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
         with:
           flutter-version: 'stable'
           channel: 'stable'
-      - run: flutter --version
+
+      - name: Flutter version
+        run: flutter --version
 
       - name: Restore packages
         run: flutter pub get
@@ -25,12 +30,3 @@ jobs:
         with:
           name: coverage-lcov
           path: coverage/lcov.info
-
-      - name: Build APK (release)
-        run: flutter build apk --release
-
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-release-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
